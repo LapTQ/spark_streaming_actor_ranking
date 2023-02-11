@@ -1,4 +1,5 @@
 from tqdm import tqdm
+import numpy as np
 
 def distribution_from(file_path, undirected):
     assert isinstance(undirected, bool), 'undirected must be boolean'
@@ -32,7 +33,7 @@ def init_PRvalue(distribution):
     return {s: 1 for s in distribution}
 
 
-def converge_PRvalue(distribution, PRvalue, n_iters, weighted):
+def converge_PRvalue(distribution, PRvalue, n_iters, weighted, log_scale=True):
     assert isinstance(weighted, bool), 'weighted must be boolean'
 
 
@@ -52,29 +53,38 @@ def converge_PRvalue(distribution, PRvalue, n_iters, weighted):
                 else:
                     contrib_coef = w / sum(weights)
 
-                contrib_value = PRvalue[s] * contrib_coef
+                if not log_scale:
+                    contrib_value = PRvalue[s] * contrib_coef
+                else:
+                    contrib_value = PRvalue[s] + np.log(contrib_coef)
 
                 contribution[d][1].append(contrib_value)
         
         sum_ = 0
-        for d in contribution:
-            contribution[d] = sum(contribution[d][1])
-            sum_ += contribution[d]
+        for d in PRvalue:
+            if not log_scale:
+                PRvalue[d] = sum(contribution[d][1])
+            else:
+                PRvalue[d] = sum(np.exp(v) for v in contribution[d][1])
+            sum_ += PRvalue[d]
 
         for d in contribution:
-            PRvalue[d] = contribution[d] / sum_
+            if not log_scale:
+                PRvalue[d] = PRvalue[d] / sum_
+            else:
+                PRvalue[d] = np.log(PRvalue[d]) - np.log(sum_)
 
     return PRvalue
 
 
 if __name__ == '__main__':
 
-    distribution = distribution_from('popularity_weight.csv', undirected=True)
-    PRvalue = init_PRvalue(distribution)
-    PRvalue = converge_PRvalue(distribution, PRvalue, n_iters=10, weighted=False)
-
-    # distribution = distribution_from('test_data.txt', undirected=False)
+    # distribution = distribution_from('popularity_weight.csv', undirected=True)
     # PRvalue = init_PRvalue(distribution)
     # PRvalue = converge_PRvalue(distribution, PRvalue, n_iters=10, weighted=False)
+
+    distribution = distribution_from('test_data.txt', undirected=False)
+    PRvalue = init_PRvalue(distribution)
+    PRvalue = converge_PRvalue(distribution, PRvalue, n_iters=10, weighted=False, log_scale=True)
     
     print(PRvalue)
