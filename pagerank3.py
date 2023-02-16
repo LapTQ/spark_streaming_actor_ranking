@@ -1,12 +1,31 @@
 from tqdm import tqdm
 import numpy as np
 import logging
+import argparse
+from pathlib import Path
+
+HERE = Path(__file__).parent
 
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s\t|%(levelname)s\t|%(name)s\t|%(message)s'
 )
+
+
+def parse_opt():
+
+    ap = argparse.ArgumentParser()
+
+    ap.add_argument('--directed', default=False, type=bool)
+    ap.add_argument('--in_out_weighted', action='store_true')
+    ap.add_argument('--n_iters', default=30, type=int)
+    ap.add_argument('--log_scale', default=True, type=bool)
+
+    opt = ap.parse_args()
+
+    return opt
+
 
 
 def extract_from_file(file_path):
@@ -61,7 +80,8 @@ def print_statistic(info):
 
 
 
-def distribution_from(info):
+def distribution_from(info, directed):
+    assert directed is True or directed is False, 'directed must be True or False'
 
     logging.info('Building distribution from info')
     
@@ -75,12 +95,22 @@ def distribution_from(info):
             if d not in distribution[s]:
                 distribution[s].append(d)
 
-            if d not in distribution:
-                distribution[d] = []
-            if s not in distribution[d]:
-                distribution[d].append(s)          
+            if not directed:
+                if d not in distribution:
+                    distribution[d] = []
+                if s not in distribution[d]:
+                    distribution[d].append(s)          
         
-    return distribution 
+    return distribution
+
+
+def export_true_rank(file_path, info):
+    logging.info(f'Exporting true rank to {file_path}')
+    
+    with open(file_path, 'w') as f:
+        for ASIN in info:
+            if 'salesrank' in info[ASIN]:
+                print(f"{ASIN},{info[ASIN]['salesrank']}", file=f)
 
 
 def init_PRvalue(distribution):
@@ -100,12 +130,12 @@ def converge_PRvalue(distribution, PRvalue, n_iters, in_out_weighted, log_scale=
             
             for d in destinations:
 
-
                 if d not in contribution:
                     contribution[d] = ([], [])
 
                 contribution[d][0].append(s)
-
+        
+        for s, destinations in distribution.items():
             for d in destinations:
 
                 if not in_out_weighted:
@@ -148,20 +178,27 @@ def converge_PRvalue(distribution, PRvalue, n_iters, in_out_weighted, log_scale=
 
     return PRvalue
 
+
 def export_result(file_path, PRvalue):
+
     logging.info(f'Exporting result to {file_path}')
+    
     with open(file_path, 'w') as f:
         for k, v in PRvalue.items():
             print(f'{k},{v}', file=f)
 
 
-
 if __name__ == '__main__':
 
-    info = extract_from_file('amazon-meta.txt')
+    # opt = parse_opt()
+
+    info = extract_from_file(str(HERE / 'amazon-meta.txt'))
     # print_statistic(info)
-    distribution = distribution_from(info)
-    PRvalue = init_PRvalue(distribution)
-    PRvalue = converge_PRvalue(distribution, PRvalue, n_iters=30, in_out_weighted=False, log_scale=True)
-    export_result('result_pagerank_original.txt', PRvalue)
+    export_true_rank(str(HERE / 'true_rank.txt'), info)
+    
+    # distribution = distribution_from(info, directed=opt.directed)
+    # PRvalue = init_PRvalue(distribution)
+    # PRvalue = converge_PRvalue(distribution, PRvalue, n_iters=opt.n_iters, in_out_weighted=opt.in_out_weighted, log_scale=opt.log_scale)
+    
+    # export_result(str(HERE / f"result_pagerank_{'original' if not opt.in_out_weighted else 'weighted'}_{'directed' if opt.directed else 'indirected'}.txt"), PRvalue)
     
