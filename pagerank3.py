@@ -90,7 +90,7 @@ def init_PRvalue(distribution):
 
 def converge_PRvalue(distribution, PRvalue, n_iters, in_out_weighted, log_scale=True):
 
-    logging.info(f'Params: ')
+    logging.info(f'Params: n_iters={n_iters}, in_out_weighted={in_out_weighted}, log_scale={log_scale}')
 
     for _ in range(n_iters):
         logging.info(f'Starting iteration {_ + 1}/{n_iters}')
@@ -162,6 +162,6 @@ if __name__ == '__main__':
     # print_statistic(info)
     distribution = distribution_from(info)
     PRvalue = init_PRvalue(distribution)
-    PRvalue = converge_PRvalue(distribution, PRvalue, n_iters=30, in_out_weighted=True, log_scale=True)
+    PRvalue = converge_PRvalue(distribution, PRvalue, n_iters=30, in_out_weighted=False, log_scale=True)
     export_result('result_pagerank_original.txt', PRvalue)
     
