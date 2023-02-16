@@ -90,6 +90,8 @@ def init_PRvalue(distribution):
 
 def converge_PRvalue(distribution, PRvalue, n_iters, in_out_weighted, log_scale=True):
 
+    logging.info(f'Params: ')
+
     for _ in range(n_iters):
         logging.info(f'Starting iteration {_ + 1}/{n_iters}')
         logging.info('Building contribution')
