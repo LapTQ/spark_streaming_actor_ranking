@@ -59,8 +59,6 @@ def converge_PRvalue(distribution, PRvalue, n_iters, movie_weighted, in_out_weig
                         contrib_coef = 2 * in_coef * out_coef / (in_coef + out_coef)
                 else:
                         contrib_coef = w / sum(weights)
-                    
-
 
                 if not log_scale:
                     contrib_value = PRvalue[s] * contrib_coef
