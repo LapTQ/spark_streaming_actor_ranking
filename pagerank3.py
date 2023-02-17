@@ -17,7 +17,7 @@ def parse_opt():
 
     ap = argparse.ArgumentParser()
 
-    ap.add_argument('--directed', default=False, type=bool)
+    ap.add_argument('--directed', required=True, type=bool)
     ap.add_argument('--in_out_weighted', action='store_true')
     ap.add_argument('--n_iters', default=30, type=int)
     ap.add_argument('--log_scale', default=True, type=bool)
@@ -76,14 +76,13 @@ def print_statistic(info):
     logging.info(f'\t Rank count: {count_rank}')
     logging.info(f'\t Rank list: {list_rank}')
     
-    
-
-
 
 def distribution_from(info, directed):
     assert directed is True or directed is False, 'directed must be True or False'
 
     logging.info('Building distribution from info')
+
+    destination_list = set()
     
     distribution = {}
     for s in info:
@@ -91,6 +90,8 @@ def distribution_from(info, directed):
         if s not in distribution:
                 distribution[s] = []
         for d in info[s].get('similar', []):
+
+            destination_list.add(d)
             
             if d not in distribution[s]:
                 distribution[s].append(d)
@@ -99,7 +100,11 @@ def distribution_from(info, directed):
                 if d not in distribution:
                     distribution[d] = []
                 if s not in distribution[d]:
-                    distribution[d].append(s)          
+                    distribution[d].append(s)
+
+    for d in destination_list:
+        if d not in distribution:
+            distribution[d] = []
         
     return distribution
 
@@ -118,12 +123,23 @@ def init_PRvalue(distribution):
     return {s: 1 for s in distribution}
 
 
+def _debug_sample_PRvalue(PRvalue, n=10):
+    buf = []
+
+    for k in list(PRvalue.keys())[:n]:
+        buf.append(f'{k}: {PRvalue[k]:.6f}')
+    
+    return ','.join(buf)
+
+
+
 def converge_PRvalue(distribution, PRvalue, n_iters, in_out_weighted, log_scale=True):
 
     logging.info(f'Params: n_iters={n_iters}, in_out_weighted={in_out_weighted}, log_scale={log_scale}')
 
     for _ in range(n_iters):
         logging.info(f'Starting iteration {_ + 1}/{n_iters}')
+        
         logging.info('Building contribution')
         contribution = {}
         for s, destinations in distribution.items():
@@ -134,15 +150,19 @@ def converge_PRvalue(distribution, PRvalue, n_iters, in_out_weighted, log_scale=
                     contribution[d] = ([], [])
 
                 contribution[d][0].append(s)
+
+        for s in distribution:
+            if s not in contribution:
+                contribution[s] = ([], [])
         
-        for s, destinations in distribution.items():
+        for s, destinations in distribution.items():               
             for d in destinations:
 
                 if not in_out_weighted:
                     contrib_coef = 1 / len(destinations)
                 else:
                     in_coef = len(contribution[d][0]) / sum(len(contribution[di][0]) for di in destinations)
-                    out_coef = len(distribution[d][0]) / sum(len(distribution[di][0]) for di in destinations)
+                    out_coef = len(distribution[d]) / (sum(len(distribution[di]) for di in destinations) or 1e-9)
                     contrib_coef = 2 * in_coef * out_coef / (in_coef + out_coef)
 
                 if not log_scale:
@@ -156,13 +176,13 @@ def converge_PRvalue(distribution, PRvalue, n_iters, in_out_weighted, log_scale=
         logging.info('Computing PRvalue')
         sum_ = 0
         for d in PRvalue:
-            if d not in contribution:
-                if not log_scale:
-                    PRvalue[d] = 0
-                else:
-                    PRvalue[d] = 1e-9
+            # if d not in contribution:
+                # if not log_scale:
+                #     PRvalue[d] = 0
+                # else:
+                #     PRvalue[d] = 1e-9
                 
-                continue
+                # continue
 
             if not log_scale:
                 PRvalue[d] = sum(contribution[d][1])
@@ -175,6 +195,8 @@ def converge_PRvalue(distribution, PRvalue, n_iters, in_out_weighted, log_scale=
                 PRvalue[d] = PRvalue[d] / sum_
             else:
                 PRvalue[d] = np.log(PRvalue[d]) - np.log(sum_)
+
+        logging.info(f'PRvalue = {_debug_sample_PRvalue(PRvalue)}')
 
     return PRvalue
 
@@ -190,15 +212,15 @@ def export_result(file_path, PRvalue):
 
 if __name__ == '__main__':
 
-    # opt = parse_opt()
+    opt = parse_opt()
 
     info = extract_from_file(str(HERE / 'amazon-meta.txt'))
     # print_statistic(info)
-    export_true_rank(str(HERE / 'true_rank.txt'), info)
+    # export_true_rank(str(HERE / 'true_rank.txt'), info)
     
-    # distribution = distribution_from(info, directed=opt.directed)
-    # PRvalue = init_PRvalue(distribution)
-    # PRvalue = converge_PRvalue(distribution, PRvalue, n_iters=opt.n_iters, in_out_weighted=opt.in_out_weighted, log_scale=opt.log_scale)
+    distribution = distribution_from(info, directed=opt.directed)
+    PRvalue = init_PRvalue(distribution)
+    PRvalue = converge_PRvalue(distribution, PRvalue, n_iters=opt.n_iters, in_out_weighted=opt.in_out_weighted, log_scale=opt.log_scale)
     
-    # export_result(str(HERE / f"result_pagerank_{'original' if not opt.in_out_weighted else 'weighted'}_{'directed' if opt.directed else 'indirected'}.txt"), PRvalue)
+    export_result(str(HERE / f"result_pagerank_{'original' if not opt.in_out_weighted else 'weighted'}_{'directed' if opt.directed else 'indirected'}.txt"), PRvalue)
     
