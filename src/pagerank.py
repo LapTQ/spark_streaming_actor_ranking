@@ -214,13 +214,13 @@ if __name__ == '__main__':
 
     opt = parse_opt()
 
-    info = extract_from_file(str(HERE / 'amazon-meta.txt'))
+    info = extract_from_file(str(HERE / '../data/amazon-meta.txt'))
     # print_statistic(info)
-    # export_true_rank(str(HERE / 'true_rank.txt'), info)
+    # export_true_rank(str(HERE / '../data/true_rank.txt'), info)
     
     distribution = distribution_from(info, directed=opt.directed)
     PRvalue = init_PRvalue(distribution)
     PRvalue = converge_PRvalue(distribution, PRvalue, n_iters=opt.n_iters, in_out_weighted=opt.in_out_weighted, log_scale=opt.log_scale)
     
-    export_result(str(HERE / f"result_pagerank_{'original' if not opt.in_out_weighted else 'weighted'}_{'directed' if opt.directed else 'indirected'}.txt"), PRvalue)
+    export_result(str(HERE / f"../data/result_pagerank_{'original' if not opt.in_out_weighted else 'weighted'}_{'directed' if opt.directed else 'indirected'}.txt"), PRvalue)
     
